@@ -1,0 +1,29 @@
+### 🧱 Stage 1: Build the JAR using Gradle
+FROM gradle:8.5-jdk21 AS builder
+
+WORKDIR /app
+
+# 필요한 파일만 먼저 복사해서 캐시 사용 최적화
+COPY build.gradle settings.gradle gradlew gradlew.bat /app/
+COPY gradle /app/gradle
+
+# dependencies 먼저 다운로드 (캐시 활용 목적)
+RUN ./gradlew dependencies
+
+# 전체 소스 복사
+COPY . /app
+
+# 프로젝트 빌드
+RUN ./gradlew clean bootJar
+
+### 🐳 Stage 2: Run the JAR
+FROM eclipse-temurin:21-jdk-jammy
+
+WORKDIR /app
+
+# 빌드 결과물만 복사 (경량 이미지)
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
